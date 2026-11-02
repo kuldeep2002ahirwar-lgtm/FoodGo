@@ -1,0 +1,34 @@
+<!doctype html><html lang="hi"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FoodGo Firebase</title>
+<style>
+body{font-family:Arial;margin:0;background:#fff5ef;color:#222}header{background:#e94b2c;color:white;text-align:center;padding:18px}main{max-width:800px;margin:auto;padding:12px}.box{background:white;padding:15px;margin:12px 0;border-radius:12px;box-shadow:0 2px 10px #ddd}button{background:#e94b2c;color:white;border:0;border-radius:8px;padding:10px;margin:4px;cursor:pointer}input,textarea{width:100%;box-sizing:border-box;padding:10px;margin:6px 0 12px;border:1px solid #ccc;border-radius:8px}.tabs{display:flex;flex-wrap:wrap}.hide{display:none}.status{background:#fff0e8;padding:10px;border-radius:8px;margin:8px 0}.order{border:1px solid #ddd;padding:10px;margin:8px 0;border-radius:8px}
+</style>
+<header><h1>🍕 FoodGo</h1>Customer • Restaurant • Rider • Live Tracking</header><main>
+<div class="box"><h2>Firebase Config</h2><p>Firebase Console → Project settings → FoodGo Web → CDN में config object कॉपी करके यहाँ पेस्ट करें।</p><textarea id="cfg" rows="7">const firebaseConfig = {
+  apiKey: "AIzaSyAIdhieSUfyn5Kdi6sjfwWfY-PxWl70a0g",
+  authDomain: "foodgo-6daca.firebaseapp.com",
+  databaseURL: "https://foodgo-6daca-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "foodgo-6daca",
+  storageBucket: "foodgo-6daca.firebasestorage.app",
+  messagingSenderId: "520946385930",
+  appId: "1:520946385930:web:ec87e7fa50e1c9e59f4bf3",
+  measurementId: "G-HY9359MEFQ"
+};</textarea><button onclick="connect()">Connect Firebase</button><div id="connection" class="status">Not connected</div><small>GPS के लिए HTTPS/localhost चाहिए। Test Mode को public न रखें; production में Auth और सुरक्षित rules लगाएँ।</small></div>
+<div class="box tabs"><button onclick="show('customer')">Customer</button><button onclick="show('restaurant')">Restaurant</button><button onclick="show('rider')">Rider</button><button onclick="show('track')">Live Track</button></div>
+<section id="customer" class="box"><h2>Customer Order</h2><p>🍕 Pizza ₹199 <button onclick="item='Pizza';price=199">Select</button></p><p>🍔 Burger ₹99 <button onclick="item='Burger';price=99">Select</button></p><p>🍟 Fries ₹79 <button onclick="item='Fries';price=79">Select</button></p><p>Selected: <b id="selected">Pizza ₹199</b></p><input id="name" placeholder="आपका नाम"><input id="phone" placeholder="मोबाइल"><input id="address" placeholder="डिलीवरी पता"><button onclick="order()">Place Order</button><div id="msg" class="status"></div></section>
+<section id="restaurant" class="box hide"><h2>Restaurant Orders</h2><div id="orders"></div></section>
+<section id="rider" class="box hide"><h2>Rider GPS</h2><input id="rorder" placeholder="Order ID"><button onclick="gps()">GPS Start</button><button onclick="stop()">GPS Stop</button><div id="gpsmsg" class="status"></div></section>
+<section id="track" class="box hide"><h2>Customer Live Track</h2><input id="torder" placeholder="Order ID"><button onclick="track()">Track Order</button><div id="tracking" class="status"></div><div id="map"></div></section>
+<div class="box"><b>Note:</b> यह starter demo है—payment, OTP, अलग customer/rider login, secure rules और production deployment अभी बाकी हैं।</div></main>
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {getDatabase,ref,push,set,onValue,update} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+let db=null,watch=null,unsub=null,item="Pizza",price=199;
+window.show=id=>{document.querySelectorAll("section").forEach(x=>x.classList.add("hide"));document.getElementById(id).classList.remove("hide");if(id==="restaurant")load()};
+window.connect=()=>{try{let s=document.getElementById("cfg").value.trim().replace(/^const\s+firebaseConfig\s*=\s*/,"").replace(/;\s*$/,"");let c=Function("return ("+s+")")();let app=initializeApp(c);db=getDatabase(app);document.getElementById("connection").textContent="Connected: "+c.projectId}catch(e){document.getElementById("connection").textContent="Config error: "+e.message}};
+window.order=async()=>{if(!db)return alert("पहले Firebase Connect करें");let n=document.getElementById("name").value,a=document.getElementById("address").value;if(!n||!a)return alert("नाम और पता भरें");let r=push(ref(db,"orders"));await set(r,{customer:n,phone:document.getElementById("phone").value,address:a,item,amount:price,status:"New",createdAt:Date.now()});document.getElementById("msg").innerHTML="Order ID: <b>"+r.key+"</b>";document.getElementById("rorder").value=r.key;document.getElementById("torder").value=r.key};
+window.load=()=>{if(!db)return;onValue(ref(db,"orders"),s=>{let o=s.val()||{};document.getElementById("orders").innerHTML=Object.entries(o).map(([id,x])=>`<div class="order"><b>${x.item}</b> ₹${x.amount}<br>ID: ${id}<br>${x.customer} — ${x.address}<br>Status: ${x.status}<br><button onclick="status('${id}','Preparing')">Preparing</button><button onclick="status('${id}','Ready')">Ready</button><button onclick="status('${id}','Out for delivery')">Out for delivery</button></div>`).join("")||"No orders"})};
+window.status=async(id,s)=>update(ref(db,"orders/"+id),{status:s});
+window.gps=()=>{if(!db)return alert("Connect Firebase");let id=document.getElementById("rorder").value;if(!id)return alert("Order ID");watch=navigator.geolocation.watchPosition(p=>set(ref(db,"orders/"+id+"/tracking"),{lat:p.coords.latitude,lng:p.coords.longitude,updatedAt:Date.now()}),e=>document.getElementById("gpsmsg").textContent=e.message,{enableHighAccuracy:true});document.getElementById("gpsmsg").textContent="GPS चालू"};
+window.stop=()=>{if(watch!==null)navigator.geolocation.clearWatch(watch);watch=null;document.getElementById("gpsmsg").textContent="GPS बंद"};
+window.track=()=>{if(!db)return alert("Connect Firebase");let id=document.getElementById("torder").value;if(unsub)unsub();unsub=onValue(ref(db,"orders/"+id),s=>{let o=s.val();if(!o)return document.getElementById("tracking").textContent="Order नहीं मिला";document.getElementById("tracking").textContent="Status: "+o.status+(o.tracking?" | Rider location: "+o.tracking.lat+","+o.tracking.lng:" | GPS pending");document.getElementById("map").innerHTML=o.tracking?`<a target="_blank" href="https://maps.google.com/?q=${o.tracking.lat},${o.tracking.lng}">Google Maps पर Rider देखें</a>`:""})};
+</script></html>
