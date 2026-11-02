@@ -1,0 +1,10 @@
+{
+  "name": "FoodGo",
+  "short_name": "FoodGo",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#f45b35",
+  "description": "FoodGo - Online Food Ordering App",
+  "icons": []
+}
